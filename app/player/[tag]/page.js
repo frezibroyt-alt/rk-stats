@@ -17,12 +17,8 @@ export default async function PlayerPage({ params }) {
       getBattleLog(tag).catch(() => ({ items: [] })),
     ]);
   } catch (e) {
-    // diagnostics (server-side env, token masked)
     const base = process.env.BRAWL_API_BASE || "(unset -> default proxy)";
     const tok = process.env.BRAWL_API_TOKEN || "";
-    const tokInfo = tok
-      ? `set, length ${tok.length}, ends "...${tok.slice(-4)}"`
-      : "MISSING";
     const usingProxy = base.includes("proxy.royaleapi.dev");
 
     return (
@@ -58,7 +54,9 @@ export default async function PlayerPage({ params }) {
               {"\n"}message: {String(e?.message || "(none)")}
               {"\n"}base: {base}
               {"\n"}usingProxy: {usingProxy ? "YES" : "NO  <- problema tut"}
-              {"\n"}token: {tokInfo}
+              {"\n"}token length: {tok.length}
+              {"\n"}token start: {JSON.stringify(tok.slice(0, 6))}
+              {"\n"}token end: {JSON.stringify(tok.slice(-6))}
             </pre>
           </div>
         </main>
