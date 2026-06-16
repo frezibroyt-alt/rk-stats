@@ -1,0 +1,54 @@
+import TopBar from "@/components/TopBar";
+import PlayerView from "@/components/PlayerView";
+import { getPlayer, getBattleLog, ApiError } from "@/lib/bs";
+import { historyEnabled } from "@/lib/supabase";
+import { cleanTag } from "@/lib/assets";
+
+export const dynamic = "force-dynamic";
+
+export default async function PlayerPage({ params }) {
+  const { tag: rawTag } = await params;
+  const tag = cleanTag(rawTag);
+
+  let player, battlelog;
+  try {
+    [player, battlelog] = await Promise.all([
+      getPlayer(tag),
+      getBattleLog(tag).catch(() => ({ items: [] })),
+    ]);
+  } catch (e) {
+    return (
+      <>
+        <TopBar back />
+        <main className="shell">
+          <div className="panel rise" style={{ marginTop: 16 }}>
+            <div className="display" style={{ fontSize: 22, marginBottom: 6 }}>
+              {e instanceof ApiError && e.status === 404 ? "Player not found" : "Something went wrong"}
+            </div>
+            <p className="muted" style={{ margin: 0 }}>
+              {e instanceof ApiError && e.status === 404
+                ? `No player with tag #${tag}. Check the tag and try again.`
+                : e instanceof ApiError && e.status === 403
+                ? "API key rejected. Check BRAWL_API_TOKEN and that the proxy IP is whitelisted (see README)."
+                : "Couldn't reach the Brawl Stars API. Try again in a moment."}
+            </p>
+          </div>
+        </main>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <TopBar back />
+      <main className="shell">
+        <PlayerView
+          player={player}
+          battlelog={battlelog}
+          tag={tag}
+          historyAvailable={historyEnabled()}
+        />
+      </main>
+    </>
+  );
+}
