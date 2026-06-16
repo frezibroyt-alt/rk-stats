@@ -32,6 +32,23 @@ export default async function PlayerPage({ params }) {
                 ? "API key rejected. Check BRAWL_API_TOKEN and that the proxy IP is whitelisted (see README)."
                 : "Couldn't reach the Brawl Stars API. Try again in a moment."}
             </p>
+            <pre
+              style={{
+                marginTop: 14,
+                padding: "10px 12px",
+                background: "var(--bg-2)",
+                border: "1px dashed var(--line)",
+                borderRadius: 12,
+                color: "var(--orange)",
+                fontSize: 12,
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-word",
+              }}
+            >
+              debug · status {String(e?.status ?? "?")}
+              {"\n"}
+              {String(e?.message || "(no message)")}
+            </pre>
           </div>
         </main>
       </>
