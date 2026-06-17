@@ -135,7 +135,6 @@ function SummaryPanel({ tag }) {
 function BrawlersTab({ player, catalog, brawlerStats, lastPlayed }) {
   const [sort, setSort] = useState("trophies");
   const [active, setActive] = useState(null);
-  const [pinned, setPinned] = useState(false);
 
   const brawlers = [...(player.brawlers || [])].sort((x, y) => {
     if (sort === "trophies") return y.trophies - x.trophies;
@@ -144,10 +143,7 @@ function BrawlersTab({ player, catalog, brawlerStats, lastPlayed }) {
     return x.name.localeCompare(y.name);
   });
 
-  const show = (b) => { if (!pinned) setActive(b); };
-  const hide = () => { if (!pinned) setActive(null); };
-  const pin = (b) => { setActive(b); setPinned(true); };
-  const close = () => { setPinned(false); setActive(null); };
+  const close = () => setActive(null);
 
   return (
     <div className="rise rise-3">
@@ -167,9 +163,7 @@ function BrawlersTab({ player, catalog, brawlerStats, lastPlayed }) {
             <div
               key={b.id}
               className="brawler"
-              onMouseEnter={() => show(b)}
-              onMouseLeave={hide}
-              onClick={() => pin(b)}
+              onClick={() => setActive(b)}
               style={{ cursor: "pointer", borderColor: active?.id === b.id ? rc : undefined }}
             >
               <SafeImg className="port" src={brawlerIcon(b.id)} alt={b.name} />
@@ -183,13 +177,12 @@ function BrawlersTab({ player, catalog, brawlerStats, lastPlayed }) {
 
       {active && (
         <>
-          {pinned && <div onClick={close} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.5)", zIndex: 40, animation: "fade .2s both" }} />}
+          <div onClick={close} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.55)", zIndex: 40 }} />
           <BrawlerCard
             b={active}
             cat={catalog[active.id] || {}}
             stats={brawlerStats[active.id]}
             lastPlayed={lastPlayed[active.id]}
-            pinned={pinned}
             onClose={close}
           />
         </>
@@ -198,7 +191,7 @@ function BrawlersTab({ player, catalog, brawlerStats, lastPlayed }) {
   );
 }
 
-function BrawlerCard({ b, cat, stats, lastPlayed, pinned, onClose }) {
+function BrawlerCard({ b, cat, stats, lastPlayed, onClose }) {
   const rc = cat.rarityColor || rarityColor(cat.rarity);
   const ownedSP = new Set((b.starPowers || []).map((x) => x.id));
   const ownedG = new Set((b.gadgets || []).map((x) => x.id));
@@ -208,14 +201,14 @@ function BrawlerCard({ b, cat, stats, lastPlayed, pinned, onClose }) {
 
   return (
     <div style={{
-      position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 41,
-      display: "flex", justifyContent: "center", pointerEvents: pinned ? "auto" : "none",
-      padding: "0 12px 12px",
+      position: "fixed", inset: 0, zIndex: 41,
+      display: "flex", alignItems: "center", justifyContent: "center",
+      padding: 16, pointerEvents: "none",
     }}>
       <div style={{
-        width: "100%", maxWidth: 460, background: "var(--panel)", border: "1px solid var(--line)",
-        borderRadius: 18, padding: 16, boxShadow: "0 -10px 40px rgba(0,0,0,.45)",
-        animation: "rise .25s cubic-bezier(.2,.7,.3,1) both", pointerEvents: "auto",
+        width: "100%", maxWidth: 420, background: "var(--panel)", border: "1px solid var(--line)",
+        borderRadius: 18, padding: 16, boxShadow: "0 20px 60px rgba(0,0,0,.5)",
+        animation: "rise .22s cubic-bezier(.2,.7,.3,1) both", pointerEvents: "auto",
       }}>
         <div className="row" style={{ gap: 12 }}>
           <SafeImg src={brawlerIcon(b.id)} alt="" style={{ width: 56, height: 56, borderRadius: 12, border: `2px solid ${rc}` }} />
@@ -226,7 +219,7 @@ function BrawlerCard({ b, cat, stats, lastPlayed, pinned, onClose }) {
             </div>
           </div>
           <div className="trophy display" style={{ fontSize: 20 }}>🏆 {compact(b.trophies)}</div>
-          {pinned && <button className="save-dot" onClick={onClose} aria-label="Close">✕</button>}
+          <button className="save-dot" onClick={onClose} aria-label="Close">✕</button>
         </div>
 
         <div style={{ margin: "14px 0 4px", display: "flex", alignItems: "center", gap: 10 }}>
