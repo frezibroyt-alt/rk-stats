@@ -1,6 +1,7 @@
 import TopBar from "@/components/TopBar";
 import SearchBar from "@/components/SearchBar";
 import SavedProfiles from "@/components/SavedProfiles";
+import SavedMatches from "@/components/SavedMatches";
 
 export default function Home() {
   return (
@@ -20,6 +21,9 @@ export default function Home() {
 
         <div className="section-title">Saved players</div>
         <div className="rise rise-3"><SavedProfiles /></div>
+
+        <div className="section-title">Saved matches</div>
+        <div className="rise rise-3"><SavedMatches /></div>
 
         <div className="spacer-16" />
         <p className="muted" style={{ fontSize: 12, textAlign: "center" }}>
