@@ -214,11 +214,18 @@ function BrawlerCard({ b, cat, stats, lastPlayed, anchor, pinned, onClose }) {
     if (!el || !anchor) return;
     const W = el.offsetWidth, H = el.offsetHeight;
     const vw = window.innerWidth, vh = window.innerHeight, gap = 8;
-    let left = anchor.right + gap;            // prefer right of the tile
-    if (left + W > vw - gap) left = anchor.left - W - gap; // flip to left
-    if (left < gap) left = Math.max(gap, (vw - W) / 2);    // fallback: center-x
-    let top = anchor.top;
-    if (top + H > vh - gap) top = vh - H - gap;            // keep on screen
+    let left, top;
+    if (anchor.right + gap + W <= vw - gap) {        // room on the right -> beside
+      left = anchor.right + gap; top = anchor.top;
+    } else if (anchor.left - gap - W >= gap) {       // room on the left -> beside
+      left = anchor.left - W - gap; top = anchor.top;
+    } else {                                         // narrow screen -> under/over the tile
+      left = Math.min(Math.max(gap, anchor.left + anchor.width / 2 - W / 2), vw - W - gap);
+      if (anchor.bottom + gap + H <= vh - gap) top = anchor.bottom + gap;     // below
+      else if (anchor.top - gap - H >= gap) top = anchor.top - H - gap;       // above
+      else top = vh - H - gap;
+    }
+    if (top + H > vh - gap) top = vh - H - gap;      // keep fully on screen
     if (top < gap) top = gap;
     setPos({ left, top });
   }, [anchor, b]);
