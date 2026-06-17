@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import SafeImg from "./SafeImg";
 import TrophyChart from "./TrophyChart";
@@ -134,7 +134,8 @@ function SummaryPanel({ tag }) {
 /* ── Brawlers + hover/tap card ───────────────────────────── */
 function BrawlersTab({ player, catalog, brawlerStats, lastPlayed }) {
   const [sort, setSort] = useState("trophies");
-  const [active, setActive] = useState(null);
+  const [pop, setPop] = useState(null);   // { b, rect }
+  const [pinned, setPinned] = useState(false);
 
   const brawlers = [...(player.brawlers || [])].sort((x, y) => {
     if (sort === "trophies") return y.trophies - x.trophies;
@@ -143,7 +144,10 @@ function BrawlersTab({ player, catalog, brawlerStats, lastPlayed }) {
     return x.name.localeCompare(y.name);
   });
 
-  const close = () => setActive(null);
+  const hover = (b, el) => { if (!pinned) setPop({ b, rect: el.getBoundingClientRect() }); };
+  const leave = () => { if (!pinned) setPop(null); };
+  const pin = (b, el) => { setPop({ b, rect: el.getBoundingClientRect() }); setPinned(true); };
+  const close = () => { setPinned(false); setPop(null); };
 
   return (
     <div className="rise rise-3">
@@ -153,7 +157,7 @@ function BrawlersTab({ player, catalog, brawlerStats, lastPlayed }) {
         ))}
       </div>
       <div className="muted" style={{ margin: "0 4px 10px", fontSize: 13 }}>
-        {brawlers.length} brawlers · tap one for details
+        {brawlers.length} brawlers · hover or tap one for details
       </div>
       <div className="bgrid">
         {brawlers.map((b) => {
@@ -163,8 +167,10 @@ function BrawlersTab({ player, catalog, brawlerStats, lastPlayed }) {
             <div
               key={b.id}
               className="brawler"
-              onClick={() => setActive(b)}
-              style={{ cursor: "pointer", borderColor: active?.id === b.id ? rc : undefined }}
+              onMouseEnter={(e) => hover(b, e.currentTarget)}
+              onMouseLeave={leave}
+              onClick={(e) => pin(b, e.currentTarget)}
+              style={{ cursor: "pointer", borderColor: pop?.b.id === b.id ? rc : undefined }}
             >
               <SafeImg className="port" src={brawlerIcon(b.id)} alt={b.name} />
               <span className="pw">{b.power}</span>
@@ -175,14 +181,16 @@ function BrawlersTab({ player, catalog, brawlerStats, lastPlayed }) {
         })}
       </div>
 
-      {active && (
+      {pop && (
         <>
-          <div onClick={close} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.55)", zIndex: 40 }} />
+          {pinned && <div onClick={close} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.45)", zIndex: 40 }} />}
           <BrawlerCard
-            b={active}
-            cat={catalog[active.id] || {}}
-            stats={brawlerStats[active.id]}
-            lastPlayed={lastPlayed[active.id]}
+            b={pop.b}
+            anchor={pop.rect}
+            pinned={pinned}
+            cat={catalog[pop.b.id] || {}}
+            stats={brawlerStats[pop.b.id]}
+            lastPlayed={lastPlayed[pop.b.id]}
             onClose={close}
           />
         </>
@@ -191,7 +199,7 @@ function BrawlersTab({ player, catalog, brawlerStats, lastPlayed }) {
   );
 }
 
-function BrawlerCard({ b, cat, stats, lastPlayed, onClose }) {
+function BrawlerCard({ b, cat, stats, lastPlayed, anchor, pinned, onClose }) {
   const rc = cat.rarityColor || rarityColor(cat.rarity);
   const ownedSP = new Set((b.starPowers || []).map((x) => x.id));
   const ownedG = new Set((b.gadgets || []).map((x) => x.id));
@@ -199,17 +207,35 @@ function BrawlerCard({ b, cat, stats, lastPlayed, onClose }) {
   const allG = cat.gadgets?.length ? cat.gadgets : (b.gadgets || []);
   const powerPct = Math.min(100, (b.power / 11) * 100);
 
+  const ref = useRef(null);
+  const [pos, setPos] = useState({ left: -9999, top: -9999 });
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el || !anchor) return;
+    const W = el.offsetWidth, H = el.offsetHeight;
+    const vw = window.innerWidth, vh = window.innerHeight, gap = 8;
+    let left = anchor.right + gap;            // prefer right of the tile
+    if (left + W > vw - gap) left = anchor.left - W - gap; // flip to left
+    if (left < gap) left = Math.max(gap, (vw - W) / 2);    // fallback: center-x
+    let top = anchor.top;
+    if (top + H > vh - gap) top = vh - H - gap;            // keep on screen
+    if (top < gap) top = gap;
+    setPos({ left, top });
+  }, [anchor, b]);
+
   return (
-    <div style={{
-      position: "fixed", inset: 0, zIndex: 41,
-      display: "flex", alignItems: "center", justifyContent: "center",
-      padding: 16, pointerEvents: "none",
-    }}>
-      <div style={{
-        width: "100%", maxWidth: 420, background: "var(--panel)", border: "1px solid var(--line)",
-        borderRadius: 18, padding: 16, boxShadow: "0 20px 60px rgba(0,0,0,.5)",
-        animation: "rise .22s cubic-bezier(.2,.7,.3,1) both", pointerEvents: "auto",
-      }}>
+    <div
+      ref={ref}
+      onClick={(e) => e.stopPropagation()}
+      style={{
+        position: "fixed", left: pos.left, top: pos.top, zIndex: 41,
+        width: "min(320px, calc(100vw - 24px))", maxHeight: "92vh", overflowY: "auto",
+        background: "var(--panel)", border: `1px solid var(--line)`, borderRadius: 18,
+        padding: 16, boxShadow: "0 16px 50px rgba(0,0,0,.5)",
+        animation: "rise .16s cubic-bezier(.2,.7,.3,1) both",
+        pointerEvents: pinned ? "auto" : "none",
+      }}
+    >
         <div className="row" style={{ gap: 12 }}>
           <SafeImg src={brawlerIcon(b.id)} alt="" style={{ width: 56, height: 56, borderRadius: 12, border: `2px solid ${rc}` }} />
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -268,7 +294,6 @@ function BrawlerCard({ b, cat, stats, lastPlayed, onClose }) {
             <span className="trophy" style={{ fontSize: 13 }}>🏆 {compact(b.highestTrophies)}</span>
           </div>
         </div>
-      </div>
     </div>
   );
 }
@@ -296,7 +321,6 @@ function Slot({ src, on, title }) {
 /* ── Battles ─────────────────────────────────────────────── */
 function BattlesTab({ items, playerTag }) {
   const [filter, setFilter] = useState("all");
-  const [, force] = useState(0);
   const now = Date.now();
   const list = items.filter((it) => {
     if (filter === "today") return it.when && new Date(it.when).toDateString() === new Date().toDateString();
@@ -314,16 +338,17 @@ function BattlesTab({ items, playerTag }) {
         The official API keeps only the last ~25 battles. Older history fills in over time (History tab).
       </div>
       {list.map((it, i) => (
-        <div key={i} style={{ marginBottom: 8 }}><BattleRow it={it} playerTag={playerTag} onToggle={() => force((n) => n + 1)} /></div>
+        <div key={i} style={{ marginBottom: 8 }}><BattleRow it={it} playerTag={playerTag} /></div>
       ))}
       {!list.length && <div className="empty">No battles in this range.</div>}
     </div>
   );
 }
 
-function BattleRow({ it, playerTag, onToggle }) {
+function BattleRow({ it, playerTag }) {
   const id = `${playerTag}:${it.raw.battleTime}`;
-  const saved = typeof window !== "undefined" && isMatchSaved(id);
+  const [saved, setSaved] = useState(false);
+  useEffect(() => { setSaved(isMatchSaved(id)); }, [id]);
   const change = it.trophyChange;
   return (
     <div className={`battle ${it.result || "draw"}`}>
@@ -344,7 +369,10 @@ function BattleRow({ it, playerTag, onToggle }) {
         <span className={`change ${change > 0 ? "up" : change < 0 ? "down" : ""}`}>{change > 0 ? "+" : ""}{change}</span>
       )}
       <button className={`save-dot ${saved ? "on" : ""}`} title={saved ? "Saved" : "Save match"}
-        onClick={() => { toggleMatch({ id, tag: playerTag, mode: it.mode, map: it.map?.name, result: it.result, when: it.when, brawler: it.brawler?.name }); onToggle && onToggle(); }}>
+        onClick={() => {
+          const now = toggleMatch({ id, tag: playerTag, mode: it.mode, map: it.map?.name, result: it.result, when: it.when, brawler: it.brawler?.name });
+          setSaved(now);
+        }}>
         {saved ? "★" : "☆"}
       </button>
     </div>
